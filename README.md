@@ -100,6 +100,7 @@ tags:
 | Show lunar calendar & holidays | Lunar dates, solar terms and holiday badges in day / week / month views; turn off for Gregorian only |
 | Journal folder | Folder holding your journals (dated tasks); the plugin scans it and subfolders for notes whose filename contains a date; default `/` means the vault root |
 | Journal load window | Load only the last N days of journals (30 / 90 / 180 / 365 / all; default all) — lower it on large vaults for better performance |
+| Daily task placement | Where tasks written to daily notes (new from the panel, drag to another day, postponement) go. Default appends to the end of the file; choose "Under a heading" and enter one (e.g. ## Today's Tasks) to place tasks after the last task in that section, creating the heading at the end of the file if it isn't found |
 | Inbox file | Where dateless tasks are stored (path relative to vault root); changing it offers to migrate existing tasks |
 | Checklist file tag(s) | Notes whose frontmatter `tags` include any of these (or a sub-tag) become checklist files; multiple allowed |
 | Checklist folders | Every note inside these folders (subfolders included) becomes a checklist file; multiple allowed, works alongside tags — either match counts. ⚠️ Don't use your journal folder or the vault root `/`, or tasks will duplicate across views |

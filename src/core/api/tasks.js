@@ -141,6 +141,89 @@ function inboxPath() {
   return p || 'DadaTodoList.md';
 }
 
+// 日记任务落点设置：'end'（默认，追加到文件末尾）| 'section'（插入到指定标题小节）
+function dailyInsertMode() {
+  return (plugin.settings && plugin.settings.dailyInsertMode) === 'section' ? 'section' : 'end';
+}
+function dailySectionTitle() {
+  return String((plugin.settings && plugin.settings.dailySectionTitle) || '').trim();
+}
+// 是否真实的日记日期键（收件箱 / 清单键走原有末尾追加，不受小节设置影响）
+const isDailyDateKey = (k) => /^\d{4}-\d{2}-\d{2}$/.test(String(k || ''));
+
+// 解析用户填写的标题：'## 今日待办' → { level:2, name:'今日待办', line:'## 今日待办' }；未写 # 时默认按二级标题匹配。
+// name 保留原文用于创建标题，匹配时双方统一小写比较。
+function parseHeadingSpec(spec) {
+  const s = String(spec || '').trim();
+  if (!s) return null;
+  const m = /^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$/.exec(s);
+  const level = m ? m[1].length : 2;
+  const name = (m ? m[2] : s).trim();
+  if (!name) return null;
+  return { level, name, line: '#'.repeat(level) + ' ' + name };
+}
+
+// 在小节内插入任务块，返回 { out, lineNo }；设置无效时返回 null（回退末尾追加）。
+// 小节边界 = 下一个同级或更高级标题；小节内的更深标题不截断。插入到小节内最后一个任务块之后，空节则插到标题下。
+// 找不到目标标题时：在文件末尾创建该小节（标题 + 空行）再放入任务。
+function insertIntoSection(lines, node, indentStr, spec) {
+  const want = parseHeadingSpec(spec);
+  if (!want) return null;
+  const headingRe = /^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/;
+  let hIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const m = headingRe.exec(lines[i]);
+    if (m && m[1].length === want.level && m[2].trim().toLowerCase() === want.name.toLowerCase()) { hIdx = i; break; }
+  }
+  if (hIdx < 0) {
+    // 文件中没有该标题：在末尾新建小节，再放入任务
+    const out = lines.slice();
+    while (out.length && !out[out.length - 1].trim()) out.pop();
+    if (out.length) out.push(''); // 与上文空一行
+    out.push(want.line);
+    const lineNo = out.length;
+    out.push(...serializeBlock(node, indentStr));
+    out.push('');
+    out.push('');
+    return { out, lineNo };
+  }
+  let end = lines.length;
+  for (let j = hIdx + 1; j < lines.length; j++) {
+    const m = /^(#{1,6})[ \t]/.exec(lines[j]);
+    if (m && m[1].length <= want.level) { end = j; break; }
+  }
+  const taskRe = /^[ \t]*- \[[ xX-]\]/;
+  let lastTask = -1;
+  for (let j = hIdx + 1; j < end; j++) if (taskRe.test(lines[j])) lastTask = j;
+  let insertAt;
+  if (lastTask >= 0) {
+    insertAt = lastTask + 1;
+    // 跳过该任务块的缩进续行（子任务 / 描述行），避免把新任务插进块中间
+    while (insertAt < end && /^[ \t]+/.test(lines[insertAt]) && lines[insertAt].trim()) insertAt++;
+  } else {
+    insertAt = hIdx + 1; // 空节：紧跟标题（下方的空行会在下面统一处理）
+  }
+  const out = lines.slice(0, insertAt);
+  while (out.length && !out[out.length - 1].trim()) out.pop();
+  const lineNo = out.length;
+  out.push(...serializeBlock(node, indentStr));
+  const rest = lines.slice(insertAt);
+  // 与文件末尾追加保持一致的「一个空行」收尾风格
+  if (!rest.length || rest[0].trim()) out.push('');
+  out.push(...rest);
+  return { out, lineNo };
+}
+
+// 统一落点：仅日记文件且设置启用小节时尝试按标题插入，否则一律末尾追加
+function placeTaskLines(lines, node, indentStr, dateKey) {
+  const spec = dailySectionTitle();
+  if (dailyInsertMode() === 'section' && spec && isDailyDateKey(dateKey)) {
+    const hit = insertIntoSection(lines, node, indentStr, spec);
+    if (hit) return hit;
+  }
+  return appendLines(lines, node, indentStr);
+}
+
 function checklistTags() {
   const s = plugin.settings && plugin.settings.checklistTags;
   const arr = Array.isArray(s) ? s.map((x) => String(x).trim()).filter(Boolean) : [];
@@ -592,7 +675,7 @@ export async function createTask(task) {
     node.start = '';
     node.due = (t.dueAt != null && todayKey(Number(t.dueAt)) > dateKey) ? todayKey(Number(t.dueAt)) : '';
   }
-  const { out, lineNo } = appendLines(doc.lines, node, '');
+  const { out, lineNo } = placeTaskLines(doc.lines, node, '', dateKey);
   await writeTasks(path, doc.head, out);
   return res(201, { ok: true, task: recordOf(dateKey, Object.assign({}, node, { lineNo }), { file: path }) });
 }
@@ -806,7 +889,7 @@ export async function updateTask(guid, patch) {
   if (!dstPath) return res(400, { ok: false, reason: 'bad_date' });
   await ensureTaskFile(targetKey, dstPath);
   const dst = await readTasks(dstPath, targetKey);
-  const { out, lineNo } = appendLines(dst.lines, node, '');
+  const { out, lineNo } = placeTaskLines(dst.lines, node, '', targetKey);
   await writeTasks(dstPath, dst.head, out);
   return res(200, { ok: true, task: recordOf(targetKey, Object.assign({}, node, { lineNo }), { file: dstPath }) });
 }

@@ -227,6 +227,10 @@ export default class DadaTodoPlugin extends Plugin {
       // 日记文件宽松匹配：默认开；开启时从文件名任意位置抽取日期（兼容各种个性化命名），
       // 关闭时仅当文件名以日期（或「星期-日期」）开头才视为日记，避免误判含日期的普通笔记
       journalLooseMatch: data.journalLooseMatch ?? true,
+      // 日记任务落点：end=追加到文件末尾（默认）；section=插入到指定标题小节
+      dailyInsertMode: data.dailyInsertMode === 'section' ? 'section' : 'end',
+      // 目标小节标题：带层级写法如 '## 今日待办'；未写 # 时按二级标题匹配。仅 section 模式生效
+      dailySectionTitle: String(data.dailySectionTitle || ''),
       // 每周起始日：0=周日 … 6=周六，默认 1（周一）
       weekStart: data.weekStart ?? 1,
       // 清单识别标记：frontmatter tags 含任一标签的笔记即清单文件

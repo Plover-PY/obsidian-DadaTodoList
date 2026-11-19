@@ -329,6 +329,30 @@ export class DadaTodoSettingTab extends PluginSettingTab {
           });
         });
       }),
+      row('dailyInsertMode', 'dailyInsertModeDesc', (s) => {
+        // 落点模式 + 目标标题合并为一项：下拉选「指定标题下」时显示标题输入框，原地切换无需重开设置页
+        let titleText;
+        const syncTitle = () => { if (titleText) titleText.inputEl.style.display = (plugin.settings.dailyInsertMode === 'section') ? '' : 'none'; };
+        s.addDropdown((dd) => {
+          dd.addOption('end', T('insertAtEnd'));
+          dd.addOption('section', T('insertAtSection'));
+          dd.setValue(plugin.settings.dailyInsertMode || 'end');
+          dd.onChange(async (value) => {
+            plugin.settings.dailyInsertMode = value;
+            await plugin.saveSettings();
+            syncTitle();
+          });
+        }).addText((tx) => {
+          titleText = tx;
+          tx.setPlaceholder(T('sectionTitlePlaceholder'));
+          tx.setValue(plugin.settings.dailySectionTitle || '');
+          tx.onChange(async (value) => {
+            plugin.settings.dailySectionTitle = String(value || '').trim();
+            await plugin.saveSettings();
+          });
+          syncTitle();
+        });
+      }),
     ]);
 
     // 分组：收件箱与清单（无日期任务文件 / 清单识别标记）
