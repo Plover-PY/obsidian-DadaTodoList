@@ -85,7 +85,7 @@ export default class DadaTodoPlugin extends Plugin {
     await this.loadSettings();
 
     // 初始化 i18n：跟随 Obsidian 界面语言（zh-cn / en）
-    await initI18n(this);
+    await initI18n(this, this.settings.language);
 
     // 本插件专属标识符（view type / 命令 id / 显示名）：免费版为历史兼容值 dada-todo-view / open-dada-todo。
     this.viewType = 'dada-todo-view';
@@ -212,6 +212,8 @@ export default class DadaTodoPlugin extends Plugin {
     this.settings = {
       // 打开位置：左侧栏 / 主工作区标签页 / 右侧栏
       openLocation: data.openLocation || 'main',
+      // 界面语言：system=跟随 Obsidian 界面语言（重新探测）；其余为固定语言码（zh-cn / zh-tw / en）
+      language: data.language || 'system',
       // 菜单样式：horizontal（默认，底部横向胶囊）/ vertical（左侧竖向菜单，可展开收起）
       menuStyle: data.menuStyle || 'horizontal',
       // 是否显示农历与节假日（日 / 周 / 月视图表头与日历格）
@@ -229,6 +231,10 @@ export default class DadaTodoPlugin extends Plugin {
       weekStart: data.weekStart ?? 1,
       // 清单识别标记：frontmatter tags 含任一标签的笔记即清单文件
       checklistTags,
+      // 清单文件夹：这些文件夹（含子目录）下的所有 md 笔记都识别为清单文件，与 tag 标记并存（任一命中即可）
+      checklistFolders: Array.isArray(data.checklistFolders)
+        ? data.checklistFolders.map((s) => String(s).trim()).filter(Boolean)
+        : [],
       // 每日笔记加载窗口（天）：以今天为中心的对称窗口（前后各 N 天），默认 'all'；大库可调小以提升加载性能
       dailyLoadWindow: data.dailyLoadWindow || 'all',
       // 任务块配色方案：default（默认）/ morandi（莫兰迪）/ jelly（卡通果冻），默认 default

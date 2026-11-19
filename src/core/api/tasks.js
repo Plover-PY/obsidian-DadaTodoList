@@ -3,7 +3,7 @@
 // 三个数据位置均为动态解析：
 //   1. 每日笔记：跟随「日记文件夹」设置（journalFolder，默认库根 /）扫描文件名含日期的 .md；
 //   2. 收件箱（无日期任务）：设置项 inboxFile，默认库根目录 DadaTodoList.md
-//   3. 清单：设置项 checklistTag（默认 todoList）——frontmatter tags 含该标签的笔记即清单文件
+//   3. 清单：frontmatter tags 命中 checklistTags，或文件位于 checklistFolders（含子目录）的笔记
 // 与网页版 tasks-server.js 语义一致：guid = `日期键#行号`，日期跨文件移动整块。
 import { moment, TFile } from 'obsidian';
 import {
@@ -145,6 +145,13 @@ function checklistTags() {
   const s = plugin.settings && plugin.settings.checklistTags;
   const arr = Array.isArray(s) ? s.map((x) => String(x).trim()).filter(Boolean) : [];
   return arr.length ? arr : ['todoList'];
+}
+
+// 用户配置的「清单文件夹」（设置项 checklistFolders，可多个；'/' = 库根 = 全库）。
+// 归一化为相对路径：空串代表库根，命中时匹配所有文件。
+function checklistFolders() {
+  const s = plugin.settings && plugin.settings.checklistFolders;
+  return Array.isArray(s) ? s.map(normFolder) : [];
 }
 
 // 收件箱文件不存在时创建（含 frontmatter），启动时调用
@@ -387,22 +394,29 @@ function listDailyFiles() {
   return out;
 }
 
-// 全库扫描：frontmatter tags 含任一「清单标记」的 md 文件 → [{ key: 'cl:<相对路径>', path, name }]
+// 全库扫描：识别为清单的 md 文件 → [{ key: 'cl:<相对路径>', path, name }]
+// 命中任一条件即可：① frontmatter tags 含任一「清单标记」（含子标签）；② 文件位于任一「清单文件夹」内（含子目录，'/' = 全库）。
 // 注意：tags 数组可能含 null 项（YAML 空值），匹配前先归一化为字符串
 function checklistFileEntries() {
   const wanted = checklistTags();
-  if (!wanted.length) return [];
+  const folders = checklistFolders();
+  if (!wanted.length && !folders.length) return [];
   const mc = plugin.app.metadataCache;
   const out = [];
   for (const f of vault().getMarkdownFiles()) {
-    const cache = mc.getFileCache(f);
-    const fm = cache && cache.frontmatter;
-    if (!fm) continue;
-    const raw = fm.tags;
-    const tags = Array.isArray(raw)
-      ? raw.filter((x) => x != null).map((x) => String(x))
-      : (typeof raw === 'string' ? raw.split(',').map((s) => s.trim()) : []);
-    const hit = tags.some((x) => wanted.some((t) => x === t || x.indexOf(t + '/') === 0));
+    // 文件夹命中：路径以「文件夹/」开头；库根（空串）命中所有 md 文件
+    let hit = folders.some((folder) => !folder || f.path.indexOf(folder + '/') === 0);
+    if (!hit && wanted.length) {
+      const cache = mc.getFileCache(f);
+      const fm = cache && cache.frontmatter;
+      if (fm) {
+        const raw = fm.tags;
+        const tags = Array.isArray(raw)
+          ? raw.filter((x) => x != null).map((x) => String(x))
+          : (typeof raw === 'string' ? raw.split(',').map((s) => s.trim()) : []);
+        hit = tags.some((x) => wanted.some((t) => x === t || x.indexOf(t + '/') === 0));
+      }
+    }
     if (!hit) continue;
     const rel = f.path.replace(/\.md$/i, '');
     out.push({ key: CL_PREFIX + rel, path: f.path, name: f.name.replace(/\.md$/i, '') });

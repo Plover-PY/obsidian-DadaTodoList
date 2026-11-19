@@ -213,4 +213,10 @@
   margin-top: 6px;
 }
 
+/* 清单文件夹设置的警示标记：红色加粗「注意」 */
+.dt-warn {
+  color: var(--text-error, #e0524b);
+  font-weight: 700;
+}
+
 

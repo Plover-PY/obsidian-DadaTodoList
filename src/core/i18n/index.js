@@ -67,9 +67,9 @@ function detectObsidianLang(app) {
   return 'en';
 }
 
-/** 初始化 i18next：在插件 onload 中 await 调用一次 */
-export async function initI18n(app) {
-  const lang = detectObsidianLang(app);
+/** 初始化 i18next：在插件 onload 中 await 调用一次。preferredLang 为设置项 'language'（'system' 或固定语言码） */
+export async function initI18n(app, preferredLang) {
+  const lang = (preferredLang && preferredLang !== 'system') ? preferredLang : detectObsidianLang(app);
 
   await i18next.init({
     lng: lang,
@@ -97,5 +97,15 @@ export async function initI18n(app) {
     i18nState.lang = lng;
     LunarI18n.setLanguage(lng.indexOf('zh') === 0 ? 'chs' : 'en');
   });
+  return lang;
+}
+
+/**
+ * 运行时切换语言（设置项 'language' 变更时调用）。
+ * @param {string} preferredLang 'system'（跟随 Obsidian 界面语言，重新探测）或固定语言码 'zh-cn' / 'zh-tw' / 'en'
+ */
+export async function setI18nLanguage(app, preferredLang) {
+  const lang = (preferredLang && preferredLang !== 'system') ? preferredLang : detectObsidianLang(app);
+  await i18next.changeLanguage(lang);
   return lang;
 }

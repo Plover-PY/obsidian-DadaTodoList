@@ -1,5 +1,5 @@
 import { PluginSettingTab, Notice, AbstractInputSuggest, TFolder, setIcon } from 'obsidian';
-import { t } from '../i18n/index.js';
+import { t, setI18nLanguage } from '../i18n/index.js';
 import { TagColorModal } from './modals.js';
 import { countInboxTasks, migrateInboxTasks, loadAll, loadChecklists, collectTags } from '../api/tasks.js';
 import { setColorScheme, setWeekStart, tagColorOf, usedTagColors, EXTRA_SCHEME_OPTIONS, isImeKey } from '../composables/tasks-logic.js';
@@ -143,6 +143,41 @@ export class DadaTodoSettingTab extends PluginSettingTab {
 
     // 分组：面板与外观
     const appearance = group('groupAppearance', [
+      row('language', 'languageDesc', (s) => {
+        s.addDropdown((dd) => {
+          dd.addOption('system', T('langSystem'));
+          dd.addOption('zh-cn', T('langZhCN'));
+          dd.addOption('zh-tw', T('langZhTW'));
+          dd.addOption('en', T('langEn'));
+          dd.setValue(plugin.settings.language || 'system');
+          dd.onChange(async (value) => {
+            plugin.settings.language = value;
+            await plugin.saveSettings();
+            await setI18nLanguage(app, value);
+            // 设置页为 Obsidian 声明式渲染，不随语言自动刷新；重开本插件设置页使其立即生效
+            try {
+              app.setting.open();
+              app.setting.openTabById(plugin.manifest.id);
+            } catch (e) { /* 刷新失败不影响语言切换本身 */ }
+            // 分组标题是声明式 group 的静态 heading，重渲时 Obsidian 不会刷新它；
+            // 按 defs 顺序直接补译（下一帧执行，确保重开后的标题 DOM 已存在）
+            setTimeout(() => {
+              try {
+                const order = ['groupAbout', 'groupAppearance', 'groupJournal', 'groupInbox', 'groupViews', 'groupReminder', 'groupTaskMark', 'groupTagColors'];
+                const hs = app.setting.containerEl.querySelectorAll('.setting-item-heading');
+                order.forEach((k, i) => { if (hs[i]) hs[i].textContent = T(k); });
+              } catch (e) { /* 忽略 */ }
+            }, 50);
+            // 提示用户语言已切换（主界面已即时生效）
+            const label = value === 'system'
+              ? T('langSystem')
+              : value === 'zh-cn' ? T('langZhCN')
+              : value === 'zh-tw' ? T('langZhTW')
+              : T('langEn');
+            new Notice(t('settings.languageSwitched', { lang: label }));
+          });
+        });
+      }),
       row('openLocation', 'openLocationDesc', (s) => {
         s.addDropdown((dd) => {
           dd.addOption('left', T('locLeft'));
@@ -337,6 +372,59 @@ export class DadaTodoSettingTab extends PluginSettingTab {
             await plugin.saveSettings();
             tagInput.value = '';
             renderChips();
+          }
+        });
+        renderChips();
+      }),
+      row('checklistFolder', 'checklistFolderDesc', (s) => {
+        // 说明末尾追加红色加粗的「注意」警告（setDesc 接受 DocumentFragment）
+        const desc = document.createDocumentFragment();
+        desc.appendChild(document.createTextNode(T('checklistFolderDesc')));
+        desc.appendChild(document.createElement('br'));
+        const warnLabel = document.createElement('span');
+        warnLabel.className = 'dt-warn';
+        warnLabel.textContent = T('checklistFolderWarnLabel');
+        desc.appendChild(warnLabel);
+        desc.appendChild(document.createTextNode(T('checklistFolderWarn')));
+        s.setDesc(desc);
+        // 多文件夹编辑器：回车 / 补全选中添加 → 胶囊展示，× 移除；与 tag 标记并存，任一命中即识别清单
+        const editor = s.controlEl.createDiv('dt-tags-editor');
+        const renderChips = () => {
+          editor.querySelectorAll('.dt-chip').forEach((n) => n.remove());
+          const inputEl = editor.querySelector('input');
+          for (const folder of plugin.settings.checklistFolders) {
+            const chip = editor.createDiv('dt-chip');
+            chip.createSpan({ text: folder });
+            const del = chip.createEl('button', { text: '×' });
+            del.setAttribute('aria-label', folder);
+            del.addEventListener('click', async () => {
+              plugin.settings.checklistFolders = plugin.settings.checklistFolders.filter((x) => x !== folder);
+              await plugin.saveSettings();
+              plugin.reloadOpenViews();
+              renderChips();
+            });
+            if (inputEl) editor.insertBefore(chip, inputEl); else editor.appendChild(chip);
+          }
+        };
+        const folderInput = editor.createEl('input', { type: 'text', placeholder: T('folderPlaceholder') });
+        const addFolder = async (raw) => {
+          // 去首尾斜杠；空 / 根路径归一化为 '/' 展示，数据层读取时再归一化为库根
+          const v = String(raw || '').trim().replace(/^\/+|\/+$/g, '') || '/';
+          if (!plugin.settings.checklistFolders.includes(v)) {
+            plugin.settings.checklistFolders.push(v);
+            await plugin.saveSettings();
+            plugin.reloadOpenViews();
+          }
+          folderInput.value = '';
+          renderChips();
+        };
+        new FolderSuggest(app, folderInput, (path) => { addFolder(path); });
+        folderInput.addEventListener('keydown', async (e) => {
+          // 输入法组字中的回车只上屏候选词，不提交文件夹
+          if (isImeKey(e)) return;
+          if (e.key === 'Enter' && folderInput.value.trim()) {
+            e.preventDefault();
+            await addFolder(folderInput.value);
           }
         });
         renderChips();
