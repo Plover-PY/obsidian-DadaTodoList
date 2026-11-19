@@ -33,6 +33,17 @@
 - **Due-time reminders** — get a system notification or an in-app notice when a task comes due, with a short "da-da" chime; all-day tasks can share one fixed reminder time (e.g. 10:00). ⚠️ Desktop only: there is no background push, so nothing fires while Obsidian is closed or in the background
 - **Smart extras** — overdue postponement in one click (diary tasks move into today's daily note), `Ctrl/⌘+click` to jump to the source note
 
+### Checklist view
+
+A checklist is a task space separate from daily notes and the inbox: each note is one checklist, ideal for shopping lists, project to-dos, reading lists, or anything that benefits from grouped tasks.
+
+- **Two ways to identify** — a note's frontmatter `tags` include the checklist tag (default `todoList`, sub-tags included), **or** the note sits inside a folder configured under "Checklist folders" (subfolders included). Both work together — either match is enough. If you prefer not to tag your notes, folders alone can drive your checklists.
+- **`###` headings are groups** — tasks are grouped by third-level headings; tasks before any heading fall into "Ungrouped". Groups can be freely added, renamed and removed.
+- **List / columns layouts** — switch between the two anytime; **drag a task onto another group** to move it, or use the **+ button** beside a group heading to add a task to it.
+- **Progress at a glance** — the sidebar shows live total / done counts per checklist; click a checklist name to open its note in the editor.
+
+> ⚠️ Don't set your journal folder or the vault root (`/`) as a checklist folder: notes there would be read both as journals/inbox and as checklists, causing duplicate tasks across views.
+
 ### Installation
 
 **Manual**: download `main.js`, `styles.css` and `manifest.json` into
@@ -46,13 +57,13 @@
 |---|---|
 | Dated tasks | Your **core Daily notes** folder (follows its folder & date format) — tasks are checkboxes inside each daily note |
 | Dateless tasks (inbox) | `DadaTodoList.md` in the vault root by default; configurable, created automatically |
-| Checklists | Any note whose frontmatter `tags` include `todoList` (configurable), anywhere in the vault |
+| Checklists | Any note whose frontmatter `tags` include a checklist tag (default `todoList`, configurable), **or** any note inside a folder configured under "Checklist folders" (subfolders included); either match counts, anywhere in the vault |
 
 Everything is plain Markdown. Uninstalling the plugin changes nothing — your notes stay as they are.
 
 ### Writing checklists
 
-Any note whose frontmatter `tags` include the checklist tag (default `todoList`) becomes a checklist. Use **`###` third-level headings as group separators** — the checklist view renders one group per heading:
+A note becomes a checklist in either of two ways: its frontmatter `tags` include the checklist tag (default `todoList`), or it sits inside a folder configured under "Checklist folders" (subfolders included). Use **`###` third-level headings as group separators** — the checklist view renders one group per heading:
 
 ```markdown
 ---
@@ -76,7 +87,7 @@ tags:
 
 ### Data access disclosure
 
-- **File enumeration**: the plugin lists Markdown file paths and their frontmatter to discover daily notes and checklist files (checklists are identified anywhere in the vault by their tags). Only matched daily notes (within the configured load window), the inbox file, and tag-matched checklist files are actually read — no other file's content is ever touched.
+- **File enumeration**: the plugin lists Markdown file paths and their frontmatter to discover daily notes and checklist files (checklists are identified by their tags or by the folder they're in). Only matched daily notes (within the configured load window), the inbox file, and matched checklist files are actually read — no other file's content is ever touched.
 - **localStorage**: stores only non-essential UI preferences (current view, filters, onboarding state) on the local device. It never contains note content and is never synced; it is deliberately *not* written to `data.json` to avoid triggering cloud-sync services on every interaction.
 
 ### Settings
@@ -84,12 +95,14 @@ tags:
 | Option | Description |
 |---|---|
 | Open location | Left sidebar / main workspace tab / right sidebar |
+| Language | Follow system / 简体中文 / 繁體中文 / English; the main interface updates immediately after switching, no restart needed |
 | Theme color scheme | Color scheme for task blocks in the timeline, calendar and other views: Default / Morandi / Jelly / Spring / Summer greens / Autumn / Winter; color derived from the task title |
 | Show lunar calendar & holidays | Lunar dates, solar terms and holiday badges in day / week / month views; turn off for Gregorian only |
 | Journal folder | Folder holding your journals (dated tasks); the plugin scans it and subfolders for notes whose filename contains a date; default `/` means the vault root |
 | Journal load window | Load only the last N days of journals (30 / 90 / 180 / 365 / all; default all) — lower it on large vaults for better performance |
 | Inbox file | Where dateless tasks are stored (path relative to vault root); changing it offers to migrate existing tasks |
-| Checklist file tag(s) | Notes whose frontmatter `tags` include any of these become checklist files; multiple allowed |
+| Checklist file tag(s) | Notes whose frontmatter `tags` include any of these (or a sub-tag) become checklist files; multiple allowed |
+| Checklist folders | Every note inside these folders (subfolders included) becomes a checklist file; multiple allowed, works alongside tags — either match counts. ⚠️ Don't use your journal folder or the vault root `/`, or tasks will duplicate across views |
 | Week starts on | First column of the week view and month calendar; Sunday through Saturday, default Monday |
 | Timeline display range | Start and end hours of the timeline view (0:00 – 24:00) to focus on the hours you use |
 | View menu | Choose which views show in the switcher menu; drag rows to reorder — all views shown in default order by default |
@@ -101,13 +114,13 @@ tags:
 
 ### Interface
 
-- **Bilingual** — follows Obsidian's interface language (English / 简体中文)
+- **Multiple languages** — follows Obsidian's interface language by default, or set manually to 简体中文 / 繁體中文 / English in settings
 - **Lunar calendar** — lunar dates, solar terms and festivals in month / week view headers, available in English too
 - **Theme aware** — all colors use Obsidian's native variables, adapting to light / dark and custom accents
 
 ### Language
 
-The interface follows Obsidian's language setting (English / 简体中文). Restart Obsidian after switching.
+The interface follows Obsidian's language by default; you can also set it manually under Settings → Language (Follow system / 简体中文 / 繁體中文 / English). The main interface updates immediately after switching, no restart needed.
 
 ---
 
