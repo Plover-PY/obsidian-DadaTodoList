@@ -46,7 +46,7 @@
                 <template v-if="g.title">
                   <span class="tk-cl-gtxt">{{ g.title }}</span><span class="tk-cl-gcnt"><span class="tk-cl-done">{{ g.done }}</span>/{{ g.total }}</span>
                 </template>
-                <span v-else class="tk-cl-gplain">{{ $t('app.ungrouped') }}</span>
+                <span v-else class="tk-cl-gplain"><i class="la la-list tk-cl-gplain-ico"></i>{{ $t('app.ungrouped') }}</span>
                 <button class="tk-add cl-gadd" type="button" :title="$t('app.addTaskToGroup')" @click="openAdd(g)">
                   <i class="la la-plus-circle"></i>
                 </button>
@@ -83,7 +83,7 @@
               <template v-if="g.title">
                 <span class="tk-cl-gtxt">{{ g.title }}</span><span class="tk-cl-gcnt"><span class="tk-cl-done">{{ g.done }}</span>/{{ g.total }}</span>
               </template>
-              <span v-else class="tk-cl-gplain">{{ $t('app.ungrouped') }}</span>
+              <span v-else class="tk-cl-gplain"><i class="la la-list tk-cl-gplain-ico"></i>{{ $t('app.ungrouped') }}</span>
               <button class="tk-add cl-gadd" type="button" :title="$t('app.addTaskToGroup')" @click="openAdd(g)">
                 <i class="la la-plus-circle"></i>
               </button>
@@ -152,7 +152,7 @@ export default {
       loading: false,
       error: '',
       dragGuid: '',        // 正在拖拽的任务 guid
-      dragOverTitle: '',   // 当前拖拽悬停的分组标题（用于高亮）
+      dragOverTitle: null, // 当前拖拽悬停的分组标题；用 null 作哨兵，避免与未分组的空标题 '' 相等而常亮高亮
     };
   },
   computed: {
@@ -301,11 +301,11 @@ export default {
         e.dataTransfer.setData('text/plain', t.guid);
       }
     },
-    onDragEnd() { this.dragGuid = ''; this.dragOverTitle = ''; },
+    onDragEnd() { this.dragGuid = ''; this.dragOverTitle = null; },
     onDragOver(e, title) { this.dragOverTitle = title; },
     onDrop(e, title) {
       const guid = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || this.dragGuid;
-      this.dragOverTitle = ''; this.dragGuid = '';
+      this.dragOverTitle = null; this.dragGuid = '';
       if (!guid) return;
       this.moveTask(guid, title);
     },
@@ -394,10 +394,11 @@ export default {
   border-bottom: 1px solid var(--line);
 }
 .tk-cl-gtitle::before { content: ''; width: 4px; height: 16px; border-radius: 3px; background: var(--gold); flex: none; }
-.tk-cl-gtitle.is-plain { border-bottom: none; padding-top: 0; }
-.tk-cl-gtitle.is-plain::before { background: transparent; width: 0; }
+/* 未分组标题：与有标题分组完全同样的边框 / padding / 字号，仅把前置竖条换成图标 */
+.tk-cl-gtitle.is-plain::before { display: none; }
 .tk-cl-gtxt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tk-cl-gplain { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.tk-cl-gplain { display: inline-flex; align-items: center; gap: 7px; }
+.tk-cl-gplain-ico { font-size: 13px; color: var(--gold); }
 .tk-cl-gcnt { font-size: 11px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .tk-cl-done { color: var(--text-accent, var(--gold)); font-weight: 700; }
 .tk-cl-rows { display: flex; flex-direction: column; }
@@ -420,6 +421,15 @@ export default {
 }
 .tk-cl-row:active { cursor: grabbing; }
 .tk-cl-row:hover { background: var(--gold-bg); }
+/* 已完成 / 已取消沉底后，与未完成任务交界处加浅灰细虚线（列表与分栏通用）。
+   排序保证「未完成在前、已完成在后」，故交界行 = 前一条未完成、本条已完成。 */
+.tk-cl-rows .tk-cl-row:not(.done):not(.cancel) + .tk-cl-row.done,
+.tk-cl-rows .tk-cl-row:not(.done):not(.cancel) + .tk-cl-row.cancel {
+  margin-top: 14px;
+  border-top: 1px dashed var(--line);
+  padding-top: 18px;
+  border-radius: 0 0 9px 9px;
+}
 .tk-cl-row .tk-check { flex: none; margin-top: 1px; }
 .tk-cl-row-main { flex: 1 1 auto; min-width: 0; }
 /* 标题与 ⏳ 徽标同行（徽标见共享样式 .tk-sched，issue #13） */
