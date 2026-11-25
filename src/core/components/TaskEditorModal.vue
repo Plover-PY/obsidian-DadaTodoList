@@ -1,5 +1,5 @@
 <template>
-  <div v-if="open" class="tk-mask" @click.self="close">
+  <div v-if="open" class="tk-mask" @click.self="close" @keydown="onMaskKeydown">
     <div class="tk-modal">
       <button class="tk-close" @click="close"><i class="la la-times"></i></button>
       <div class="tk-modal-head">
@@ -538,6 +538,17 @@ export default {
       this.form.tags.splice(i, 1);
     },
     /* ---------- 键盘：输入法组字期间的回车 / esc 不算快捷键 ---------- */
+    // Ctrl/⌘+S = 保存（新建 / 编辑通用）。绑在遮罩层，表单内任意输入框（含描述 textarea）都能冒泡触发。
+    // 阻止默认行为 = 拦下浏览器「保存网页」；停止冒泡 = 避免 Obsidian 的全局 Ctrl/⌘+S 同时保存笔记。
+    // 输入法组字期间放行，与标题回车 / 标签 esc 的处理保持一致。
+    onMaskKeydown(e) {
+      if (isImeKey(e)) return;
+      if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 's') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.open && !this.saving) this.save();
+      }
+    },
     // 标题回车 = 保存；中文输入法按回车是「上屏候选词」，那一下必须放行
     onTitleEnter(e) {
       if (isImeKey(e)) return;
